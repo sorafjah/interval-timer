@@ -40,6 +40,27 @@
       }
     }
 
+    /* キラキラが上下にふわふわ浮遊するアニメーション */
+    @keyframes floatUpDown {
+      0%, 100% {
+        transform: translateY(-10px);
+      }
+      50% {
+        transform: translateY(10px);
+      }
+    }
+    .animate-float-1 {
+      animation: floatUpDown 3s ease-in-out infinite;
+    }
+    .animate-float-2 {
+      animation: floatUpDown 2.4s ease-in-out infinite;
+      animation-delay: 0.4s;
+    }
+    .animate-float-3 {
+      animation: floatUpDown 3.6s ease-in-out infinite;
+      animation-delay: 0.8s;
+    }
+
     /* じわっと減るサークル用のアニメーション設定 */
     .timer-circle {
       transition: stroke-dashoffset 0.85s cubic-bezier(0.1, 0.8, 0.25, 1), stroke 0.5s ease;
@@ -163,21 +184,27 @@
 
     <!-- [全セット完了画面用コンテナ] -->
     <div id="complete-container" class="w-full flex flex-col items-center py-6 animate-scale-up hidden">
-      <!-- 祝杯とキラキラマークが重ならないよう、離して綺麗に配置 -->
-      <div class="relative flex justify-center items-center w-48 h-48 mb-6">
-        <!-- 左上キラキラ -->
-        <div class="absolute -top-6 -left-12 text-yellow-400 animate-pulse">
-          <svg xmlns="http://www.w3.org/2000/svg" width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m12 3-1.912 5.813a2 2 0 0 1-1.275 1.275L3 12l5.813 1.912a2 2 0 0 1 1.275 1.275L12 21l1.912-5.813a2 2 0 0 1 1.275-1.275L21 12l-5.813-1.912a2 2 0 0 1-1.275-1.275Z"/><path d="m5 3 1 2.5L8.5 6 6 7 5 9.5 4 7 1.5 6 4 5.5Z"/></svg>
+      <!-- キラキラマークたちが上下にふわふわ動くエリア -->
+      <div class="relative flex justify-center items-center w-64 h-48 mb-6">
+        <!-- 中央の大きなキラキラ -->
+        <div class="text-yellow-400 animate-float-1">
+          <svg xmlns="http://www.w3.org/2000/svg" width="84" height="84" viewBox="0 0 24 24" fill="currentColor"><path d="m12 3-1.912 5.813a2 2 0 0 1-1.275 1.275L3 12l5.813 1.912a2 2 0 0 1 1.275 1.275L12 21l1.912-5.813a2 2 0 0 1 1.275-1.275L21 12l-5.813-1.912a2 2 0 0 1-1.275-1.275Z"/></svg>
         </div>
-        
-        <!-- トロフィー (跳ねる) -->
-        <div class="text-amber-500 animate-bounce" style="animation-duration: 2.5s">
-          <svg xmlns="http://www.w3.org/2000/svg" width="96" height="96" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6"/><path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18"/><path d="M4 22h16"/><path d="M10 14.66V17c0 .55-.45 1-1 1H4v2h16v-2h-5c-.55 0-1-.45-1-1v-2.34"/><path d="M12 2a6 6 0 0 1 6 6v1a6 6 0 0 1-6 6a6 6 0 0 1-6-6V8a6 6 0 0 1 6-6z"/></svg>
+        <!-- 左のふわふわキラキラ -->
+        <div class="absolute left-4 top-12 text-yellow-500 animate-float-2">
+          <svg xmlns="http://www.w3.org/2000/svg" width="44" height="44" viewBox="0 0 24 24" fill="currentColor"><path d="m12 3-1.912 5.813a2 2 0 0 1-1.275 1.275L3 12l5.813 1.912a2 2 0 0 1 1.275 1.275L12 21l1.912-5.813a2 2 0 0 1 1.275-1.275L21 12l-5.813-1.912a2 2 0 0 1-1.275-1.275Z"/></svg>
         </div>
-        
-        <!-- 右下キラキラ -->
-        <div class="absolute -bottom-6 -right-12 text-yellow-500 animate-pulse">
-          <svg xmlns="http://www.w3.org/2000/svg" width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m12 3-1.912 5.813a2 2 0 0 1-1.275 1.275L3 12l5.813 1.912a2 2 0 0 1 1.275 1.275L12 21l1.912-5.813a2 2 0 0 1 1.275-1.275L21 12l-5.813-1.912a2 2 0 0 1-1.275-1.275Z"/><path d="m19 17 1 2.5 2.5.5-2.5 1-1 2.5-1-2.5-2.5-1 2.5-1Z"/></svg>
+        <!-- 右のふわふわキラキラ -->
+        <div class="absolute right-4 top-6 text-amber-400 animate-float-3">
+          <svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" viewBox="0 0 24 24" fill="currentColor"><path d="m12 3-1.912 5.813a2 2 0 0 1-1.275 1.275L3 12l5.813 1.912a2 2 0 0 1 1.275 1.275L12 21l1.912-5.813a2 2 0 0 1 1.275-1.275L21 12l-5.813-1.912a2 2 0 0 1-1.275-1.275Z"/></svg>
+        </div>
+        <!-- サブキラキラ1 -->
+        <div class="absolute left-14 top-4 text-amber-300 animate-float-3" style="animation-delay: 0.2s">
+          <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="currentColor"><path d="m12 3-1.912 5.813a2 2 0 0 1-1.275 1.275L3 12l5.813 1.912a2 2 0 0 1 1.275 1.275L12 21l1.912-5.813a2 2 0 0 1 1.275-1.275L21 12l-5.813-1.912a2 2 0 0 1-1.275-1.275Z"/></svg>
+        </div>
+        <!-- サブキラキラ2 -->
+        <div class="absolute right-14 bottom-4 text-yellow-300 animate-float-1" style="animation-delay: 0.6s">
+          <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="currentColor"><path d="m12 3-1.912 5.813a2 2 0 0 1-1.275 1.275L3 12l5.813 1.912a2 2 0 0 1 1.275 1.275L12 21l1.912-5.813a2 2 0 0 1 1.275-1.275L21 12l-5.813-1.912a2 2 0 0 1-1.275-1.275Z"/></svg>
         </div>
       </div>
       
@@ -187,7 +214,7 @@
 
       <div class="bg-amber-50 dark:bg-amber-950/30 px-8 py-4 rounded-2xl border border-amber-200/30 mb-8 w-full max-w-xs">
         <span class="block text-xs text-amber-700 dark:text-amber-400 font-bold tracking-widest uppercase mb-1">達成セット数</span>
-        <span id="complete-cycles-display" class="text-3xl font-extrabold text-slate-800 dark:text-slate-100">
+        <span id="complete-cycles-display-summary" class="text-3xl font-extrabold text-slate-800 dark:text-slate-100">
           0 / 3 セット
         </span>
       </div>
@@ -378,7 +405,7 @@
         }
 
         if (type === 'complete') {
-          // お祝いファンファーレ和音 (ド・ミ・ソ・ド)
+          // お祝いファンファーレ和音 (ド・ミ・ソ・ド) - 長めの1.2秒に調整
           const notes = [523.25, 659.25, 783.99, 1046.50];
           notes.forEach((freq, index) => {
             const osc = ctx.createOscillator();
@@ -388,10 +415,10 @@
             
             osc.frequency.setValueAtTime(freq, ctx.currentTime + index * 0.12);
             gainNode.gain.setValueAtTime(0.12, ctx.currentTime + index * 0.12);
-            gainNode.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + index * 0.12 + 0.8);
+            gainNode.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + index * 0.12 + 1.0);
             
             osc.start(ctx.currentTime + index * 0.12);
-            osc.stop(ctx.currentTime + index * 0.12 + 0.8);
+            osc.stop(ctx.currentTime + index * 0.12 + 1.2);
           });
           return;
         }
@@ -444,39 +471,44 @@
       if (timerInterval) clearInterval(timerInterval);
       timerInterval = setInterval(() => {
         if (state.isActive && !state.isCompleted) {
-          if (state.timeLeft <= 1) {
-            // 現在のフェーズが活動（アクティビティ）の場合
+          
+          if (state.timeLeft === 0) {
+            // 0秒で音が鳴り終わったのを待ってから、実際の画面切り替えを処理する (1秒の間)
             if (state.currentPhase === 'activity') {
-              const nextCycles = state.completedCycles + 1;
-              state.completedCycles = nextCycles;
-              
-              // 目標セットに達したか確認 (無制限でない場合)
-              if (state.targetCycles !== null && nextCycles >= state.targetCycles) {
+              if (state.targetCycles !== null && state.completedCycles >= state.targetCycles) {
                 state.isActive = false;
                 state.isCompleted = true;
                 clearInterval(timerInterval);
-                playBeep('complete');
                 updateUI();
                 return;
               }
               
-              playBeep('switch');
               state.currentPhase = 'rest';
               state.timeLeft = state.restDuration;
-              // 休憩フェーズに入る瞬間に、サークルを「パッと」100%にする
               setProgress(100, true);
             } else {
-              // 休憩フェーズが終わった場合 -> セット数は増やさず次の活動へ
-              playBeep('switch');
               state.currentPhase = 'activity';
               state.timeLeft = state.activityDuration;
-              // 活動フェーズに入る瞬間に、サークルを「パッと」100%にする
               setProgress(100, true);
             }
           } else {
             state.timeLeft -= 1;
-            // 残り3秒、2秒、1秒でカウントダウン
-            if (state.timeLeft <= 3 && state.timeLeft > 0) {
+            
+            // 残り秒数がちょうど「0秒」になった瞬間に音を鳴らし、セット数を加算
+            if (state.timeLeft === 0) {
+              if (state.currentPhase === 'activity') {
+                state.completedCycles += 1;
+                // 全セット終了か、通常切り替えかを判定
+                if (state.targetCycles !== null && state.completedCycles >= state.targetCycles) {
+                  playBeep('complete');
+                } else {
+                  playBeep('switch');
+                }
+              } else {
+                playBeep('switch');
+              }
+            } else if (state.timeLeft <= 3 && state.timeLeft > 0) {
+              // 残り3秒、2秒、1秒でカウントダウン
               playBeep('countdown');
             }
           }
@@ -525,7 +557,7 @@
     function getTheme() {
       if (state.isCompleted) {
         return {
-          bg: 'from-amber-100 to-yellow-200 dark:from-slate-900 dark:to-amber-950/40',
+          bg: 'from-amber-50 to-yellow-100 dark:from-slate-900 dark:to-amber-950/20',
           card: 'bg-white/90 dark:bg-slate-900/95',
           button: 'bg-gradient-to-r from-amber-500 to-yellow-500 hover:from-amber-600 hover:to-yellow-600 text-white'
         };
@@ -573,9 +605,9 @@
         completeContainerEl.classList.remove('hidden');
         
         // 完了したセット数のテキストを更新
-        document.getElementById('complete-cycles-display').innerText = `${state.completedCycles} / ${state.targetCycles} セット`;
+        document.getElementById('complete-cycles-display-summary').innerText = `${state.completedCycles} / ${state.targetCycles} セット`;
         
-        // もう一度ボタンのカラークラス
+        // もう一度ボタンのカラークラスを同期
         const restartBtn = document.getElementById('btn-restart');
         restartBtn.className = `py-4 px-10 rounded-2xl ${theme.button} font-extrabold tracking-wider transition-all duration-300 active:scale-95 text-lg w-full max-w-xs`;
       } else {
@@ -597,7 +629,7 @@
         progressCircleEl.setAttribute('class', `timer-circle ${state.currentPhase === 'activity' ? 'stroke-amber-500' : 'stroke-emerald-500'}`);
         bgCircleEl.setAttribute('class', `transition-colors duration-500 ${state.currentPhase === 'activity' ? 'stroke-amber-100 dark:stroke-amber-950/50' : 'stroke-emerald-100 dark:stroke-emerald-950/50'}`);
 
-        // 残り時間割合を算出して、サークルにじわっと反映させる (新規作成されないためアニメーションがバッチリ働きます)
+        // 残り時間割合を算出して、サークルにじわっと反映させる (新規作成されないためアニメーションがスムーズに働きます)
         const totalDuration = state.currentPhase === 'activity' ? state.activityDuration : state.restDuration;
         const progressPercent = (state.timeLeft / totalDuration) * 100;
         setProgress(progressPercent);
@@ -683,6 +715,7 @@
       settingsModalEl.classList.remove('hidden');
     }
 
+    // 設定を閉じる
     function closeSettings() {
       settingsModalEl.classList.add('hidden');
       if (!state.isStarted) {
