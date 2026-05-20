@@ -1,0 +1,698 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Interval Timer</title>
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    /* iOS/iPadOSで最も可愛く、斜線のない「0」を表示する丸ゴシック系フォントを指定 */
+    body, button, span, h2, h3, div {
+      font-family: 'Hiragino Maru Gothic ProN', 'Hiragino Kaku Gothic ProN', 'Helvetica Neue', Arial, sans-serif;
+      -webkit-tap-highlight-color: transparent;
+    }
+    @keyframes fadeIn {
+      from { opacity: 0; }
+      to { opacity: 1; }
+    }
+    @keyframes scaleUp {
+      from { transform: scale(0.95); opacity: 0; }
+      to { transform: scale(1); opacity: 1; }
+    }
+    .animate-fade-in {
+      animation: fadeIn 0.2s ease-out forwards;
+    }
+    .animate-scale-up {
+      animation: scaleUp 0.25s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+    }
+    .animate-bounce-slow {
+      animation: bounce 3s infinite;
+    }
+    @keyframes bounce {
+      0%, 100% {
+        transform: translateY(-5%);
+        animation-timing-function: cubic-bezier(0.8,0,1,1);
+      }
+      50% {
+        transform: none;
+        animation-timing-function: cubic-bezier(0,0,0.2,1);
+      }
+    }
+  </style>
+</head>
+<body class="transition-colors duration-700 min-h-screen w-full flex flex-col items-center justify-center p-6 bg-gradient-to-b overflow-hidden select-none">
+
+  <!-- ================= 左上：設定ボタン (高いz-indexで絶対に重ならない) ================= -->
+  <button 
+    id="btn-settings"
+    class="absolute top-6 left-6 p-4 rounded-full text-slate-400 hover:text-slate-700 dark:text-slate-600 dark:hover:text-slate-300 transition-all duration-300 hover:rotate-45 active:scale-95 opacity-50 hover:opacity-100 bg-white/20 dark:bg-slate-800/20 backdrop-blur-sm z-30"
+    aria-label="タイマー設定を開く"
+  >
+    <!-- Settings Icon SVG -->
+    <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.1a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/></svg>
+  </button>
+
+  <!-- ================= 右上：消音ボタン (高いz-indexで絶対に重ならない) ================= -->
+  <button 
+    id="btn-volume"
+    class="absolute top-6 right-6 p-4 rounded-full text-slate-400 hover:text-slate-700 dark:text-slate-600 dark:hover:text-slate-300 transition-all duration-300 active:scale-95 opacity-50 hover:opacity-100 bg-white/20 dark:bg-slate-800/20 backdrop-blur-sm z-30"
+    aria-label="消音の切り替え"
+  >
+    <!-- Volume SVG (初期はオン) -->
+    <span id="volume-icon">
+      <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 5L6 9H2v6h4l5 4V5z"/><path d="M15.54 8.46a5 5 0 0 1 0 7.07"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14"/></svg>
+    </span>
+  </button>
+
+  <!-- ================= メインカード (影なしフラットデザイン) ================= -->
+  <div 
+    id="main-card" 
+    class="w-full max-w-xl p-8 rounded-3xl transition-all duration-700 flex flex-col items-center text-center border border-white/20 dark:border-slate-800/30 z-10"
+  >
+    <!-- [動的コンテンツエリア：通常タイマー または 完了画面] -->
+    <div id="card-content" class="w-full flex flex-col items-center">
+      <!-- JSで動的に書き換えます -->
+    </div>
+  </div>
+
+  <!-- ================= 設定ダイアログ（モーダル） ================= -->
+  <div 
+    id="settings-modal" 
+    class="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-md p-4 hidden animate-fade-in"
+  >
+    <div class="bg-white dark:bg-slate-900 w-full max-w-md rounded-3xl p-6 relative border border-slate-100 dark:border-slate-800 animate-scale-up max-h-[90vh] overflow-y-auto">
+      
+      <!-- 閉じるボタン -->
+      <button 
+        id="btn-close-settings"
+        class="absolute top-5 right-5 p-2 rounded-full text-slate-400 hover:text-slate-600 dark:text-slate-500 dark:hover:text-slate-300 transition-colors"
+        aria-label="設定を閉じる"
+      >
+        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+      </button>
+
+      <h3 class="text-2xl font-bold text-slate-800 dark:text-slate-100 mb-6 flex items-center gap-2 border-b border-slate-100 dark:border-slate-800 pb-3">
+        <svg xmlns="http://www.w3.org/2000/svg" class="text-slate-500" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.1a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/></svg>
+        タイマー設定
+      </h3>
+
+      <!-- 設定項目リスト -->
+      <div class="space-y-6">
+        
+        <!-- 活動（アクティビティ）時間 -->
+        <div>
+          <label class="block text-sm font-semibold text-slate-600 dark:text-slate-400 mb-2">
+            🔥 活動（アクティビティ）時間
+          </label>
+          <div class="flex items-center justify-between bg-slate-50 dark:bg-slate-800/50 p-3 rounded-2xl border border-slate-100 dark:border-slate-800">
+            <button id="btn-act-minus" class="p-3 bg-white dark:bg-slate-800 rounded-xl text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 active:scale-95 transition-all font-bold text-lg">-5s</button>
+            <div class="flex flex-col items-center">
+              <span id="val-activity" class="text-3xl font-extrabold text-amber-500">30</span>
+              <span class="text-xs text-slate-400">秒</span>
+            </div>
+            <button id="btn-act-plus" class="p-3 bg-white dark:bg-slate-800 rounded-xl text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 active:scale-95 transition-all font-bold text-lg">+5s</button>
+          </div>
+          <!-- クイック選択 -->
+          <div class="flex gap-2 mt-2" id="presets-activity">
+            <!-- JSで動的に追加、アクティブ状態を同期 -->
+          </div>
+        </div>
+
+        <!-- 休憩（レスト）時間 -->
+        <div>
+          <label class="block text-sm font-semibold text-slate-600 dark:text-slate-400 mb-2">
+            ☕ 休憩（レスト）時間
+          </label>
+          <div class="flex items-center justify-between bg-slate-50 dark:bg-slate-800/50 p-3 rounded-2xl border border-slate-100 dark:border-slate-800">
+            <button id="btn-rest-minus" class="p-3 bg-white dark:bg-slate-800 rounded-xl text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 active:scale-95 transition-all font-bold text-lg">-5s</button>
+            <div class="flex flex-col items-center">
+              <span id="val-rest" class="text-3xl font-extrabold text-emerald-500">30</span>
+              <span class="text-xs text-slate-400">秒</span>
+            </div>
+            <button id="btn-rest-plus" class="p-3 bg-white dark:bg-slate-800 rounded-xl text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 active:scale-95 transition-all font-bold text-lg">+5s</button>
+          </div>
+          <!-- クイック選択 -->
+          <div class="flex gap-2 mt-2" id="presets-rest">
+            <!-- JSで動的に追加、アクティブ状態を同期 -->
+          </div>
+        </div>
+
+        <!-- セット数設定 -->
+        <div>
+          <label class="block text-sm font-semibold text-slate-600 dark:text-slate-400 mb-2">
+            🔁 目標セット数
+          </label>
+          <div class="flex items-center justify-between bg-slate-50 dark:bg-slate-800/50 p-3 rounded-2xl border border-slate-100 dark:border-slate-800">
+            <button id="btn-cycles-minus" class="p-3 bg-white dark:bg-slate-800 rounded-xl text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 active:scale-95 transition-all font-bold flex items-center justify-center w-12 h-12">
+              <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/></svg>
+            </button>
+            <div class="flex flex-col items-center">
+              <span id="val-cycles" class="text-3xl font-extrabold text-blue-500">3</span>
+              <span id="lbl-cycles-unit" class="text-xs text-slate-400">セット</span>
+            </div>
+            <button id="btn-cycles-plus" class="p-3 bg-white dark:bg-slate-800 rounded-xl text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 active:scale-95 transition-all font-bold flex items-center justify-center w-12 h-12">
+              <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="M12 5v14"/></svg>
+            </button>
+          </div>
+          <!-- クイック選択 -->
+          <div class="flex gap-2 mt-2" id="presets-cycles">
+            <!-- JSで動的に追加、アクティブ状態を同期 -->
+          </div>
+        </div>
+
+        <!-- 音量カウントダウン有無 -->
+        <div class="flex items-center justify-between py-2 border-t border-slate-100 dark:border-slate-800 mt-6 pt-4">
+          <span class="text-sm font-semibold text-slate-600 dark:text-slate-400 flex items-center gap-2">
+            <span id="switch-sound-icon">
+              <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 5L6 9H2v6h4l5 4V5z"/><path d="M15.54 8.46a5 5 0 0 1 0 7.07"/></svg>
+            </span>
+            残り3秒のカウントダウン音
+          </span>
+          <button
+            id="toggle-sound-switch"
+            class="w-14 h-8 rounded-full transition-colors relative flex items-center bg-amber-500"
+          >
+            <span id="sound-switch-dot" class="w-6 h-6 bg-white rounded-full absolute shadow transition-transform translate-x-7" />
+          </button>
+        </div>
+
+      </div>
+
+      <!-- 設定を完了するボタン (現在のテーマと完全に統一されたデザイン、影なし) -->
+      <button
+        id="btn-apply-settings"
+        class="w-full mt-8 py-4 font-extrabold rounded-2xl transition-all tracking-wide text-center active:scale-95 duration-200"
+      >
+        設定を適用して戻る
+      </button>
+    </div>
+  </div>
+
+  <!-- ================================================================================= -->
+  <!-- ================================= JavaScript ================================= -->
+  <!-- ================================================================================= -->
+  <script>
+    // アプリケーションの状態
+    const state = {
+      activityDuration: 30,
+      restDuration: 30,
+      targetCycles: 3, // null は無限（なし）
+      
+      currentPhase: 'activity', // 'activity' | 'rest'
+      timeLeft: 30,
+      isActive: false,
+      isStarted: false, // 一時停止時に現在の秒数を維持するためのフラグ
+      completedCycles: 0,
+      isCompleted: false,
+      
+      soundEnabled: true
+    };
+
+    // 音声コンテキストの保持
+    const audioCtxRef = { current: null };
+    let timerInterval = null;
+
+    // DOM要素のキャッシュ
+    const bodyEl = document.body;
+    const mainCardEl = document.getElementById('main-card');
+    const cardContentEl = document.getElementById('card-content');
+    const settingsModalEl = document.getElementById('settings-modal');
+    
+    // 設定ダイアログ用要素
+    const valActivityEl = document.getElementById('val-activity');
+    const valRestEl = document.getElementById('val-rest');
+    const valCyclesEl = document.getElementById('val-cycles');
+    const lblCyclesUnitEl = document.getElementById('lbl-cycles-unit');
+    const btnApplySettingsEl = document.getElementById('btn-apply-settings');
+    const soundSwitchDotEl = document.getElementById('sound-switch-dot');
+    const toggleSoundSwitchEl = document.getElementById('toggle-sound-switch');
+    const switchSoundIconEl = document.getElementById('switch-sound-icon');
+    const volumeIconEl = document.getElementById('volume-icon');
+
+    // 効果音再生
+    function playBeep(type) {
+      if (!state.soundEnabled) return;
+      try {
+        if (!audioCtxRef.current) {
+          const AudioContext = window.AudioContext || window.webkitAudioContext;
+          audioCtxRef.current = new AudioContext();
+        }
+        const ctx = audioCtxRef.current;
+        if (ctx.state === 'suspended') {
+          ctx.resume();
+        }
+
+        if (type === 'complete') {
+          // お祝いファンファーレ和音 (ド・ミ・ソ・ド)
+          const notes = [523.25, 659.25, 783.99, 1046.50];
+          notes.forEach((freq, index) => {
+            const osc = ctx.createOscillator();
+            const gainNode = ctx.createGain();
+            osc.connect(gainNode);
+            gainNode.connect(ctx.destination);
+            
+            osc.frequency.setValueAtTime(freq, ctx.currentTime + index * 0.12);
+            gainNode.gain.setValueAtTime(0.12, ctx.currentTime + index * 0.12);
+            gainNode.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + index * 0.12 + 0.8);
+            
+            osc.start(ctx.currentTime + index * 0.12);
+            osc.stop(ctx.currentTime + index * 0.12 + 0.8);
+          });
+          return;
+        }
+
+        const osc = ctx.createOscillator();
+        const gainNode = ctx.createGain();
+        osc.connect(gainNode);
+        gainNode.connect(ctx.destination);
+
+        if (type === 'countdown') {
+          // コッ、コッ、コッ (低めの短い音)
+          osc.frequency.setValueAtTime(440, ctx.currentTime);
+          gainNode.gain.setValueAtTime(0.08, ctx.currentTime);
+          osc.start();
+          gainNode.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.15);
+          osc.stop(ctx.currentTime + 0.15);
+        } else if (type === 'switch') {
+          // 優しく長めの「ポーン」音 (C5 / 0.8秒)
+          osc.frequency.setValueAtTime(523.25, ctx.currentTime);
+          gainNode.gain.setValueAtTime(0.15, ctx.currentTime);
+          osc.start();
+          gainNode.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.8);
+          osc.stop(ctx.currentTime + 0.8);
+        }
+      } catch (error) {
+        console.warn("Audio Context の再生に失敗しました:", error);
+      }
+    }
+
+    // タイマーの更新ループ
+    function startTimerLoop() {
+      if (timerInterval) clearInterval(timerInterval);
+      timerInterval = setInterval(() => {
+        if (state.isActive && !state.isCompleted) {
+          if (state.timeLeft <= 1) {
+            // 現在のフェーズが活動（アクティビティ）の場合
+            if (state.currentPhase === 'activity') {
+              const nextCycles = state.completedCycles + 1;
+              state.completedCycles = nextCycles;
+              
+              // 目標セットに達したか確認 (無制限でない場合)
+              if (state.targetCycles !== null && nextCycles >= state.targetCycles) {
+                state.isActive = false;
+                state.isCompleted = true;
+                clearInterval(timerInterval);
+                playBeep('complete');
+                updateUI();
+                return;
+              }
+              
+              playBeep('switch');
+              state.currentPhase = 'rest';
+              state.timeLeft = state.restDuration;
+            } else {
+              // 休憩フェーズが終わった場合 -> セット数は増やさず次の活動へ
+              playBeep('switch');
+              state.currentPhase = 'activity';
+              state.timeLeft = state.activityDuration;
+            }
+          } else {
+            state.timeLeft -= 1;
+            // 残り3秒、2秒、1秒でカウントダウン
+            if (state.timeLeft <= 3 && state.timeLeft > 0) {
+              playBeep('countdown');
+            }
+          }
+          updateUI();
+        }
+      }, 1000);
+    }
+
+    // タイマー開始/一時停止
+    function toggleTimer() {
+      if (!audioCtxRef.current) {
+        const AudioContext = window.AudioContext || window.webkitAudioContext;
+        audioCtxRef.current = new AudioContext();
+      }
+      if (audioCtxRef.current.state === 'suspended') {
+        audioCtxRef.current.resume();
+      }
+      
+      state.isActive = !state.isActive;
+      state.isStarted = true;
+      
+      if (state.isActive) {
+        startTimerLoop();
+      } else {
+        if (timerInterval) clearInterval(timerInterval);
+      }
+      updateUI();
+    }
+
+    // タイマーを初期状態に戻す
+    function resetTimer() {
+      state.isActive = false;
+      state.isStarted = false;
+      if (timerInterval) clearInterval(timerInterval);
+      state.currentPhase = 'activity';
+      state.timeLeft = state.activityDuration;
+      state.completedCycles = 0;
+      state.isCompleted = false;
+      updateUI();
+    }
+
+    // 画面状態(テーマ)の決定
+    function getTheme() {
+      if (state.isCompleted) {
+        return {
+          bg: 'from-amber-100 to-yellow-200 dark:from-slate-900 dark:to-amber-950/40',
+          card: 'bg-white/90 dark:bg-slate-900/95',
+          button: 'bg-gradient-to-r from-amber-500 to-yellow-500 hover:from-amber-600 hover:to-yellow-600 text-white'
+        };
+      } else if (state.currentPhase === 'activity') {
+        return {
+          bg: 'from-orange-50 to-amber-100 dark:from-slate-900 dark:to-orange-950/20',
+          card: 'bg-white/80 dark:bg-slate-900/80',
+          ring: 'stroke-amber-500',
+          ringBg: 'stroke-amber-100 dark:stroke-amber-950/50',
+          labelColor: 'text-amber-700 dark:text-amber-300',
+          button: 'bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-white',
+          icon: `<svg class="w-12 h-12 text-amber-500 animate-pulse" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3-1.072-2.143-.224-4.054 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.153.433-2.294 1-3a2.5 2.5 0 0 0 2.5 2.5z"/></svg>`,
+          label: '活動（アクティビティ）'
+        };
+      } else {
+        return {
+          bg: 'from-emerald-50 to-teal-100 dark:from-slate-900 dark:to-emerald-950/20',
+          card: 'bg-white/80 dark:bg-slate-900/80',
+          ring: 'stroke-emerald-500',
+          ringBg: 'stroke-emerald-100 dark:stroke-emerald-950/50',
+          labelColor: 'text-emerald-700 dark:text-emerald-300',
+          button: 'bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-600 hover:to-teal-600 text-white',
+          icon: `<svg class="w-12 h-12 text-emerald-500 animate-bounce-slow" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 8h1a4 4 0 1 1 0 8h-1"/><path d="M3 8h14v9a4 4 0 0 1-4 4H7a4 4 0 0 1-4-4Z"/><line x1="6" y1="2" x2="6" y2="4"/><line x1="10" y1="2" x2="10" y2="4"/><line x1="14" y1="2" x2="14" y2="4"/></svg>`,
+          label: '休憩（レスト）'
+        };
+      }
+    }
+
+    // 全体の描画更新 (UIとStateの同期)
+    function updateUI() {
+      const theme = getTheme();
+      
+      // 背景グラデーション更新
+      bodyEl.className = `transition-colors duration-700 min-h-screen w-full flex flex-col items-center justify-center p-6 bg-gradient-to-b overflow-hidden select-none ${theme.bg}`;
+      
+      // メインカードのクラス更新
+      mainCardEl.className = `w-full max-w-xl p-8 rounded-3xl ${theme.card} border border-white/20 dark:border-slate-800/30 transition-all duration-700 flex flex-col items-center text-center z-10`;
+
+      // モダール「適用ボタン」のグラデーションも現在のテーマに同期
+      btnApplySettingsEl.className = `w-full mt-8 py-4 ${theme.button} font-extrabold rounded-2xl transition-all tracking-wide text-center active:scale-95 duration-200`;
+
+      // 完了画面、もしくは通常タイマーの描画切り替え
+      if (state.isCompleted) {
+        cardContentEl.innerHTML = `
+          <div class="flex flex-col items-center py-6 animate-scale-up">
+            <!-- 祝杯とキラキラマークが重ならないよう、離して綺麗に配置 -->
+            <div class="relative flex justify-center items-center w-48 h-48 mb-6">
+              <!-- 左上キラキラ -->
+              <div class="absolute -top-4 -left-12 text-yellow-400 animate-pulse">
+                <svg xmlns="http://www.w3.org/2000/svg" width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m12 3-1.912 5.813a2 2 0 0 1-1.275 1.275L3 12l5.813 1.912a2 2 0 0 1 1.275 1.275L12 21l1.912-5.813a2 2 0 0 1 1.275-1.275L21 12l-5.813-1.912a2 2 0 0 1-1.275-1.275Z"/><path d="m5 3 1 2.5L8.5 6 6 7 5 9.5 4 7 1.5 6 4 5.5Z"/></svg>
+              </div>
+              
+              <!-- トロフィー (跳ねる) -->
+              <div class="text-amber-500 animate-bounce" style="animation-duration: 2.5s">
+                <svg xmlns="http://www.w3.org/2000/svg" width="96" height="96" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6"/><path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18"/><path d="M4 22h16"/><path d="M10 14.66V17c0 .55-.45 1-1 1H4v2h16v-2h-5c-.55 0-1-.45-1-1v-2.34"/><path d="M12 2a6 6 0 0 1 6 6v1a6 6 0 0 1-6 6a6 6 0 0 1-6-6V8a6 6 0 0 1 6-6z"/></svg>
+              </div>
+              
+              <!-- 右下キラキラ -->
+              <div class="absolute -bottom-4 -right-12 text-yellow-500 animate-pulse">
+                <svg xmlns="http://www.w3.org/2000/svg" width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m12 3-1.912 5.813a2 2 0 0 1-1.275 1.275L3 12l5.813 1.912a2 2 0 0 1 1.275 1.275L12 21l1.912-5.813a2 2 0 0 1 1.275-1.275L21 12l-5.813-1.912a2 2 0 0 1-1.275-1.275Z"/><path d="m19 17 1 2.5 2.5.5-2.5 1-1 2.5-1-2.5-2.5-1 2.5-1Z"/></svg>
+              </div>
+            </div>
+            
+            <h2 class="text-5xl font-black text-amber-600 dark:text-amber-400 mb-4 tracking-wide leading-tight">
+              おつかれさま〜♪
+            </h2>
+
+            <div class="bg-amber-50 dark:bg-amber-950/30 px-8 py-4 rounded-2xl border border-amber-200/30 mb-8 w-full max-w-xs">
+              <span class="block text-xs text-amber-700 dark:text-amber-400 font-bold tracking-widest uppercase mb-1">達成セット数</span>
+              <span class="text-3xl font-extrabold text-slate-800 dark:text-slate-100">
+                ${state.completedCycles} / ${state.targetCycles} セット
+              </span>
+            </div>
+
+            <button
+              id="btn-restart"
+              class="py-4 px-10 rounded-2xl ${theme.button} font-extrabold tracking-wider transition-all duration-300 active:scale-95 text-lg w-full max-w-xs"
+            >
+              もう一度行う
+            </button>
+          </div>
+        `;
+        
+        // 再チャレンジボタンのリスナー紐付け
+        document.getElementById('btn-restart').addEventListener('click', resetTimer);
+      } else {
+        // 通常タイマー画面の描画
+        const totalDuration = state.currentPhase === 'activity' ? state.activityDuration : state.restDuration;
+        const progressPercent = (state.timeLeft / totalDuration) * 100;
+        
+        // 12時起点・時計回りに減るためのSVG Dashoffsetの計算
+        const strokeDasharray = 942.48;
+        const strokeDashoffset = strokeDasharray * (1 - progressPercent / 100);
+
+        cardContentEl.innerHTML = `
+          <!-- モード名・アイコン -->
+          <div class="flex items-center gap-3 mb-6">
+            ${theme.icon}
+            <h2 class="text-3xl font-extrabold tracking-wider ${theme.labelColor} transition-colors duration-500">
+              ${theme.label}
+            </h2>
+          </div>
+
+          <!-- セット数カウンター -->
+          <div class="bg-slate-100 dark:bg-slate-800/60 px-5 py-2 rounded-full text-slate-600 dark:text-slate-300 text-sm font-semibold tracking-wide mb-6">
+            セット数: <span class="text-lg font-bold text-slate-800 dark:text-slate-100">${state.completedCycles}</span>
+            <span class="text-slate-400 mx-1">/</span>
+            <span class="text-slate-500 dark:text-slate-400 font-bold">
+              ${state.targetCycles === null ? '∞' : state.targetCycles}
+            </span>
+          </div>
+
+          <!-- 円形プログレス＆時間表示 -->
+          <div class="relative w-72 h-72 md:w-80 md:h-80 flex items-center justify-center my-4">
+            <!-- 12時の位置から時計回りに減るインラインSVG。
+                 translate, rotate, scaleの厳密な組み合わせにより、CSS仕様変更に左右されずに時計回り減衰を実現 -->
+            <svg class="w-full h-full" viewBox="0 0 320 320">
+              <!-- 背景の円 -->
+              <circle
+                class="transition-colors duration-500 ${theme.ringBg}"
+                stroke-width="14"
+                fill="transparent"
+                r="150"
+                cx="160"
+                cy="160"
+                transform="translate(160, 160) rotate(-90) translate(-160, -160)"
+              />
+              <!-- 進捗の円 -->
+              <circle
+                class="transition-all duration-300 ease-linear ${theme.ring}"
+                stroke-width="14"
+                stroke-dasharray="942.48"
+                stroke-dashoffset="${strokeDashoffset}"
+                stroke-linecap="round"
+                fill="transparent"
+                r="150"
+                cx="160"
+                cy="160"
+                transform="translate(160, 160) rotate(-90) scale(-1, 1) translate(-160, -160)"
+              />
+            </svg>
+            
+            <!-- 中央の残り秒数 (斜線なし、可愛い丸みのあるシステム太字フォント) -->
+            <div class="absolute inset-0 flex flex-col items-center justify-center">
+              <span class="text-8xl font-black tracking-tight text-slate-800 dark:text-slate-100 select-none leading-none">
+                ${state.timeLeft}
+              </span>
+              <span class="text-sm font-semibold text-slate-500 tracking-widest mt-2 uppercase">
+                秒
+              </span>
+            </div>
+          </div>
+
+          <!-- コントロールボタン (影なしのソリッドなデザイン) -->
+          <div class="flex items-center justify-center gap-6 mt-8 w-full max-w-sm">
+            <!-- リセットボタン -->
+            <button
+              id="btn-reset"
+              class="flex-1 py-4 px-6 rounded-2xl bg-slate-200 hover:bg-slate-300 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 font-bold tracking-wide transition-all duration-200 active:scale-95 flex items-center justify-center gap-2"
+              aria-label="タイマーをリセット"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>
+              リセット
+            </button>
+
+            <!-- スタート/一時停止ボタン -->
+            <button
+              id="btn-toggle"
+              class="flex-1 py-4 px-6 rounded-2xl ${theme.button} font-bold tracking-wider transition-all duration-300 active:scale-95 flex items-center justify-center gap-2"
+              aria-label="${state.isActive ? 'タイマーを一時停止' : 'タイマーを開始'}"
+            >
+              ${state.isActive ? `
+                <svg xmlns="http://www.w3.org/2000/svg" class="fill-current" width="24" height="24" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="14" y="4" width="4" height="16" rx="1"/><rect x="6" y="4" width="4" height="16" rx="1"/></svg>
+                一時停止
+              ` : `
+                <svg xmlns="http://www.w3.org/2000/svg" class="fill-current" width="24" height="24" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="6 3 20 12 6 21 6 3"/></svg>
+                スタート
+              `}
+            </button>
+          </div>
+        `;
+
+        // 動的ボタンのイベント紐付け
+        document.getElementById('btn-reset').addEventListener('click', resetTimer);
+        document.getElementById('btn-toggle').addEventListener('click', toggleTimer);
+      }
+
+      // 音声有無の状態反映
+      if (state.soundEnabled) {
+        volumeIconEl.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 5L6 9H2v6h4l5 4V5z"/><path d="M15.54 8.46a5 5 0 0 1 0 7.07"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14"/></svg>`;
+        switchSoundIconEl.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 5L6 9H2v6h4l5 4V5z"/><path d="M15.54 8.46a5 5 0 0 1 0 7.07"/></svg>`;
+        toggleSoundSwitchEl.className = "w-14 h-8 rounded-full transition-colors relative flex items-center bg-amber-500";
+        soundSwitchDotEl.className = "w-6 h-6 bg-white rounded-full absolute shadow transition-transform translate-x-7";
+      } else {
+        volumeIconEl.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 5L6 9H2v6h4l5 4V5z"/><line x1="22" y1="9" x2="16" y2="15"/><line x1="16" y1="9" x2="22" y2="15"/></svg>`;
+        switchSoundIconEl.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 5L6 9H2v6h4l5 4V5z"/><line x1="22" y1="9" x2="16" y2="15"/><line x1="16" y1="9" x2="22" y2="15"/></svg>`;
+        toggleSoundSwitchEl.className = "w-14 h-8 rounded-full transition-colors relative flex items-center bg-slate-300 dark:bg-slate-700";
+        soundSwitchDotEl.className = "w-6 h-6 bg-white rounded-full absolute shadow transition-transform translate-x-1";
+      }
+    }
+
+    // 設定モーダルの表示更新
+    function updateSettingsUI() {
+      valActivityEl.innerText = state.activityDuration;
+      valRestEl.innerText = state.restDuration;
+      
+      if (state.targetCycles === null) {
+        valCyclesEl.innerText = 'なし';
+        lblCyclesUnitEl.innerText = 'ずっと繰り返す';
+      } else {
+        valCyclesEl.innerText = state.targetCycles;
+        lblCyclesUnitEl.innerText = 'セット';
+      }
+
+      // プリセットボタンの再生成
+      renderPresets('presets-activity', [15, 30, 45, 60, 90], state.activityDuration, (val) => {
+        state.activityDuration = val;
+        if (!state.isStarted) state.timeLeft = val;
+        updateSettingsUI();
+      });
+
+      renderPresets('presets-rest', [10, 15, 30, 45, 60], state.restDuration, (val) => {
+        state.restDuration = val;
+        if (!state.isStarted && state.currentPhase === 'rest') state.timeLeft = val;
+        updateSettingsUI();
+      });
+
+      renderPresets('presets-cycles', [null, 3, 5, 10], state.targetCycles, (val) => {
+        state.targetCycles = val;
+        updateSettingsUI();
+      });
+    }
+
+    // プリセットボタン生成ヘルパー
+    function renderPresets(containerId, values, currentValue, onClickCallback) {
+      const container = document.getElementById(containerId);
+      container.innerHTML = '';
+      values.forEach(val => {
+        const btn = document.createElement('button');
+        btn.className = `flex-1 py-2 text-sm font-bold rounded-xl transition-all ${
+          currentValue === val 
+            ? 'bg-blue-500 text-white' 
+            : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700'
+        }`;
+        btn.innerText = val === null ? 'なし' : `${val}${containerId.includes('cycles') ? '回' : '秒'}`;
+        btn.addEventListener('click', () => onClickCallback(val));
+        container.appendChild(btn);
+      });
+    }
+
+    // 設定パネルの表示・非表示
+    function openSettings() {
+      updateSettingsUI();
+      settingsModalEl.classList.remove('hidden');
+    }
+
+    function closeSettings() {
+      settingsModalEl.classList.add('hidden');
+      if (!state.isStarted) {
+        state.timeLeft = state.currentPhase === 'activity' ? state.activityDuration : state.restDuration;
+      }
+      updateUI();
+    }
+
+    // イベントリスナーのセットアップ (影はなく、すべてフラット)
+    document.getElementById('btn-settings').addEventListener('click', openSettings);
+    document.getElementById('btn-close-settings').addEventListener('click', closeSettings);
+    document.getElementById('btn-apply-settings').addEventListener('click', closeSettings);
+    
+    // 消音ボタン
+    document.getElementById('btn-volume').addEventListener('click', () => {
+      state.soundEnabled = !state.soundEnabled;
+      updateUI();
+    });
+
+    // 設定モーダル内の音調節スイッチ
+    toggleSoundSwitchEl.addEventListener('click', () => {
+      state.soundEnabled = !state.soundEnabled;
+      updateSettingsUI();
+      updateUI();
+    });
+
+    // 秒数・サイクル増減ボタンのイベント
+    document.getElementById('btn-act-minus').addEventListener('click', () => {
+      state.activityDuration = Math.max(1, state.activityDuration - 5);
+      if (!state.isStarted) state.timeLeft = state.activityDuration;
+      updateSettingsUI();
+    });
+    document.getElementById('btn-act-plus').addEventListener('click', () => {
+      state.activityDuration += 5;
+      if (!state.isStarted) state.timeLeft = state.activityDuration;
+      updateSettingsUI();
+    });
+
+    document.getElementById('btn-rest-minus').addEventListener('click', () => {
+      state.restDuration = Math.max(1, state.restDuration - 5);
+      if (!state.isStarted && state.currentPhase === 'rest') state.timeLeft = state.restDuration;
+      updateSettingsUI();
+    });
+    document.getElementById('btn-rest-plus').addEventListener('click', () => {
+      state.restDuration += 5;
+      if (!state.isStarted && state.currentPhase === 'rest') state.timeLeft = state.restDuration;
+      updateSettingsUI();
+    });
+
+    document.getElementById('btn-cycles-minus').addEventListener('click', () => {
+      if (state.targetCycles === null) {
+        state.targetCycles = 1;
+      } else if (state.targetCycles <= 1) {
+        state.targetCycles = null; // 「1」の次は「なし」
+      } else {
+        state.targetCycles -= 1;
+      }
+      updateSettingsUI();
+    });
+    document.getElementById('btn-cycles-plus').addEventListener('click', () => {
+      if (state.targetCycles === null) {
+        state.targetCycles = 1;
+      } else {
+        state.targetCycles += 1;
+      }
+      updateSettingsUI();
+    });
+
+    // 初回起動処理
+    resetTimer();
+  </script>
+</body>
+</html>
