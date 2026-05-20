@@ -39,6 +39,15 @@
         animation-timing-function: cubic-bezier(0,0,0.2,1);
       }
     }
+
+    /* じわっと減るサークル用のアニメーション設定 */
+    .timer-circle {
+      transition: stroke-dashoffset 0.85s cubic-bezier(0.1, 0.8, 0.25, 1), stroke 0.5s ease;
+    }
+    /* リセット時やフェーズ切り替え時に一瞬でサークルを満タンに戻すためのクラス */
+    .timer-circle-instant {
+      transition: none !important;
+    }
   </style>
 </head>
 <body class="transition-colors duration-700 min-h-screen w-full flex flex-col items-center justify-center p-6 bg-gradient-to-b overflow-hidden select-none">
@@ -70,10 +79,127 @@
     id="main-card" 
     class="w-full max-w-xl p-8 rounded-3xl transition-all duration-700 flex flex-col items-center text-center border border-white/20 dark:border-slate-800/30 z-10"
   >
-    <!-- [動的コンテンツエリア：通常タイマー または 完了画面] -->
-    <div id="card-content" class="w-full flex flex-col items-center">
-      <!-- JSで動的に書き換えます -->
+    <!-- [通常タイマー画面用コンテナ] (DOM要素を維持して、滑らかなアニメーションを可能にします) -->
+    <div id="timer-container" class="w-full flex flex-col items-center">
+      
+      <!-- モード名・アイコン -->
+      <div class="flex items-center gap-3 mb-6">
+        <span id="phase-icon"></span>
+        <h2 id="phase-label" class="text-3xl font-extrabold tracking-wider transition-colors duration-500"></h2>
+      </div>
+
+      <!-- セット数カウンター -->
+      <div class="bg-slate-100 dark:bg-slate-800/60 px-5 py-2 rounded-full text-slate-600 dark:text-slate-300 text-sm font-semibold tracking-wide mb-6">
+        セット数: <span id="completed-cycles-display" class="text-lg font-bold text-slate-800 dark:text-slate-100">0</span>
+        <span class="text-slate-400 mx-1">/</span>
+        <span id="target-cycles-display" class="text-slate-500 dark:text-slate-400 font-bold">3</span>
+      </div>
+
+      <!-- 円形プログレス＆時間表示 -->
+      <div class="relative w-72 h-72 md:w-80 md:h-80 flex items-center justify-center my-4">
+        <!-- 12時の位置から時計回りに減るインラインSVG。
+             12時(上)起点、時計回り(右回り)に減衰する精密な変形行列を適用 -->
+        <svg class="w-full h-full" viewBox="0 0 320 320">
+          <!-- 背景の円 -->
+          <circle
+            id="bg-circle"
+            class="transition-colors duration-500"
+            stroke-width="14"
+            fill="transparent"
+            r="150"
+            cx="160"
+            cy="160"
+            transform="translate(160, 160) rotate(90) scale(-1, 1) translate(-160, -160)"
+          />
+          <!-- 進捗の円 (お尻から縮む = 12時起点で時計回りに削れて減っていく) -->
+          <circle
+            id="progress-circle"
+            class="timer-circle"
+            stroke-width="14"
+            stroke-dasharray="942.48"
+            stroke-dashoffset="0"
+            stroke-linecap="round"
+            fill="transparent"
+            r="150"
+            cx="160"
+            cy="160"
+            transform="translate(160, 160) rotate(90) scale(-1, 1) translate(-160, -160)"
+          />
+        </svg>
+        
+        <!-- 中央の残り秒数 (斜線なし、可愛い丸みのあるシステム太字フォント) -->
+        <div class="absolute inset-0 flex flex-col items-center justify-center">
+          <span id="time-left-display" class="text-8xl font-black tracking-tight text-slate-800 dark:text-slate-100 select-none leading-none">
+            30
+          </span>
+          <span class="text-sm font-semibold text-slate-500 tracking-widest mt-2 uppercase">
+            秒
+          </span>
+        </div>
+      </div>
+
+      <!-- コントロールボタン (影なしのソリッドなデザイン) -->
+      <div class="flex items-center justify-center gap-6 mt-8 w-full max-w-sm">
+        <!-- リセットボタン -->
+        <button
+          id="btn-reset"
+          class="flex-1 py-4 px-6 rounded-2xl bg-slate-200 hover:bg-slate-300 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 font-bold tracking-wide transition-all duration-200 active:scale-95 flex items-center justify-center gap-2"
+          aria-label="タイマーをリセット"
+        >
+          <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>
+          リセット
+        </button>
+
+        <!-- スタート/一時停止ボタン -->
+        <button
+          id="btn-toggle"
+          class="flex-1 py-4 px-6 rounded-2xl font-bold tracking-wider transition-all duration-300 active:scale-95 flex items-center justify-center gap-2"
+        >
+          <span id="toggle-icon"></span>
+          <span id="toggle-text">スタート</span>
+        </button>
+      </div>
     </div>
+
+    <!-- [全セット完了画面用コンテナ] -->
+    <div id="complete-container" class="w-full flex flex-col items-center py-6 animate-scale-up hidden">
+      <!-- 祝杯とキラキラマークが重ならないよう、離して綺麗に配置 -->
+      <div class="relative flex justify-center items-center w-48 h-48 mb-6">
+        <!-- 左上キラキラ -->
+        <div class="absolute -top-6 -left-12 text-yellow-400 animate-pulse">
+          <svg xmlns="http://www.w3.org/2000/svg" width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m12 3-1.912 5.813a2 2 0 0 1-1.275 1.275L3 12l5.813 1.912a2 2 0 0 1 1.275 1.275L12 21l1.912-5.813a2 2 0 0 1 1.275-1.275L21 12l-5.813-1.912a2 2 0 0 1-1.275-1.275Z"/><path d="m5 3 1 2.5L8.5 6 6 7 5 9.5 4 7 1.5 6 4 5.5Z"/></svg>
+        </div>
+        
+        <!-- トロフィー (跳ねる) -->
+        <div class="text-amber-500 animate-bounce" style="animation-duration: 2.5s">
+          <svg xmlns="http://www.w3.org/2000/svg" width="96" height="96" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6"/><path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18"/><path d="M4 22h16"/><path d="M10 14.66V17c0 .55-.45 1-1 1H4v2h16v-2h-5c-.55 0-1-.45-1-1v-2.34"/><path d="M12 2a6 6 0 0 1 6 6v1a6 6 0 0 1-6 6a6 6 0 0 1-6-6V8a6 6 0 0 1 6-6z"/></svg>
+        </div>
+        
+        <!-- 右下キラキラ -->
+        <div class="absolute -bottom-6 -right-12 text-yellow-500 animate-pulse">
+          <svg xmlns="http://www.w3.org/2000/svg" width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m12 3-1.912 5.813a2 2 0 0 1-1.275 1.275L3 12l5.813 1.912a2 2 0 0 1 1.275 1.275L12 21l1.912-5.813a2 2 0 0 1 1.275-1.275L21 12l-5.813-1.912a2 2 0 0 1-1.275-1.275Z"/><path d="m19 17 1 2.5 2.5.5-2.5 1-1 2.5-1-2.5-2.5-1 2.5-1Z"/></svg>
+        </div>
+      </div>
+      
+      <h2 class="text-5xl font-black text-amber-600 dark:text-amber-400 mb-4 tracking-wide leading-tight">
+        おつかれさま〜♪
+      </h2>
+
+      <div class="bg-amber-50 dark:bg-amber-950/30 px-8 py-4 rounded-2xl border border-amber-200/30 mb-8 w-full max-w-xs">
+        <span class="block text-xs text-amber-700 dark:text-amber-400 font-bold tracking-widest uppercase mb-1">達成セット数</span>
+        <span id="complete-cycles-display" class="text-3xl font-extrabold text-slate-800 dark:text-slate-100">
+          0 / 3 セット
+        </span>
+      </div>
+
+      <button
+        id="btn-restart"
+        class="py-4 px-10 rounded-2xl font-extrabold tracking-wider transition-all duration-300 active:scale-95 text-lg w-full max-w-xs"
+      >
+        もう一度行う
+      </button>
+    </div>
+
   </div>
 
   <!-- ================= 設定ダイアログ（モーダル） ================= -->
@@ -114,9 +240,7 @@
             <button id="btn-act-plus" class="p-3 bg-white dark:bg-slate-800 rounded-xl text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 active:scale-95 transition-all font-bold text-lg">+5s</button>
           </div>
           <!-- クイック選択 -->
-          <div class="flex gap-2 mt-2" id="presets-activity">
-            <!-- JSで動的に追加、アクティブ状態を同期 -->
-          </div>
+          <div class="flex gap-2 mt-2" id="presets-activity"></div>
         </div>
 
         <!-- 休憩（レスト）時間 -->
@@ -133,9 +257,7 @@
             <button id="btn-rest-plus" class="p-3 bg-white dark:bg-slate-800 rounded-xl text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 active:scale-95 transition-all font-bold text-lg">+5s</button>
           </div>
           <!-- クイック選択 -->
-          <div class="flex gap-2 mt-2" id="presets-rest">
-            <!-- JSで動的に追加、アクティブ状態を同期 -->
-          </div>
+          <div class="flex gap-2 mt-2" id="presets-rest"></div>
         </div>
 
         <!-- セット数設定 -->
@@ -156,9 +278,7 @@
             </button>
           </div>
           <!-- クイック選択 -->
-          <div class="flex gap-2 mt-2" id="presets-cycles">
-            <!-- JSで動的に追加、アクティブ状態を同期 -->
-          </div>
+          <div class="flex gap-2 mt-2" id="presets-cycles"></div>
         </div>
 
         <!-- 音量カウントダウン有無 -->
@@ -179,7 +299,7 @@
 
       </div>
 
-      <!-- 設定を完了するボタン (現在のテーマと完全に統一されたデザイン、影なし) -->
+      <!-- 設定を完了するボタン -->
       <button
         id="btn-apply-settings"
         class="w-full mt-8 py-4 font-extrabold rounded-2xl transition-all tracking-wide text-center active:scale-95 duration-200"
@@ -216,8 +336,22 @@
     // DOM要素のキャッシュ
     const bodyEl = document.body;
     const mainCardEl = document.getElementById('main-card');
-    const cardContentEl = document.getElementById('card-content');
+    const timerContainerEl = document.getElementById('timer-container');
+    const completeContainerEl = document.getElementById('complete-container');
     const settingsModalEl = document.getElementById('settings-modal');
+    
+    // 通常タイマー内の動的書き換え要素
+    const phaseIconEl = document.getElementById('phase-icon');
+    const phaseLabelEl = document.getElementById('phase-label');
+    const completedCyclesDisplayEl = document.getElementById('completed-cycles-display');
+    const targetCyclesDisplayEl = document.getElementById('target-cycles-display');
+    const timeLeftDisplayEl = document.getElementById('time-left-display');
+    const progressCircleEl = document.getElementById('progress-circle');
+    const bgCircleEl = document.getElementById('bg-circle');
+    const toggleIconEl = document.getElementById('toggle-icon');
+    const toggleTextEl = document.getElementById('toggle-text');
+    const btnToggleEl = document.getElementById('btn-toggle');
+    const btnResetEl = document.getElementById('btn-reset');
     
     // 設定ダイアログ用要素
     const valActivityEl = document.getElementById('val-activity');
@@ -287,6 +421,24 @@
       }
     }
 
+    // サークルプログレスバーを更新する (じわっとアニメーション付き / instantフラグで瞬時切り替え)
+    function setProgress(percent, instant = false) {
+      if (!progressCircleEl) return;
+      const strokeDasharray = 942.48;
+      const offset = strokeDasharray * (1 - percent / 100);
+      
+      if (instant) {
+        // トランジションを一時的にオフにして、パッと戻す
+        progressCircleEl.classList.add('timer-circle-instant');
+        progressCircleEl.setAttribute('stroke-dashoffset', offset);
+        // ブラウザに強制リフローさせて即座に適用
+        progressCircleEl.getBoundingClientRect();
+        progressCircleEl.classList.remove('timer-circle-instant');
+      } else {
+        progressCircleEl.setAttribute('stroke-dashoffset', offset);
+      }
+    }
+
     // タイマーの更新ループ
     function startTimerLoop() {
       if (timerInterval) clearInterval(timerInterval);
@@ -311,11 +463,15 @@
               playBeep('switch');
               state.currentPhase = 'rest';
               state.timeLeft = state.restDuration;
+              // 休憩フェーズに入る瞬間に、サークルを「パッと」100%にする
+              setProgress(100, true);
             } else {
               // 休憩フェーズが終わった場合 -> セット数は増やさず次の活動へ
               playBeep('switch');
               state.currentPhase = 'activity';
               state.timeLeft = state.activityDuration;
+              // 活動フェーズに入る瞬間に、サークルを「パッと」100%にする
+              setProgress(100, true);
             }
           } else {
             state.timeLeft -= 1;
@@ -359,6 +515,9 @@
       state.timeLeft = state.activityDuration;
       state.completedCycles = 0;
       state.isCompleted = false;
+      
+      // リセット時はサークルを瞬時に100%に戻す
+      setProgress(100, true);
       updateUI();
     }
 
@@ -410,148 +569,49 @@
 
       // 完了画面、もしくは通常タイマーの描画切り替え
       if (state.isCompleted) {
-        cardContentEl.innerHTML = `
-          <div class="flex flex-col items-center py-6 animate-scale-up">
-            <!-- 祝杯とキラキラマークが重ならないよう、離して綺麗に配置 -->
-            <div class="relative flex justify-center items-center w-48 h-48 mb-6">
-              <!-- 左上キラキラ -->
-              <div class="absolute -top-4 -left-12 text-yellow-400 animate-pulse">
-                <svg xmlns="http://www.w3.org/2000/svg" width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m12 3-1.912 5.813a2 2 0 0 1-1.275 1.275L3 12l5.813 1.912a2 2 0 0 1 1.275 1.275L12 21l1.912-5.813a2 2 0 0 1 1.275-1.275L21 12l-5.813-1.912a2 2 0 0 1-1.275-1.275Z"/><path d="m5 3 1 2.5L8.5 6 6 7 5 9.5 4 7 1.5 6 4 5.5Z"/></svg>
-              </div>
-              
-              <!-- トロフィー (跳ねる) -->
-              <div class="text-amber-500 animate-bounce" style="animation-duration: 2.5s">
-                <svg xmlns="http://www.w3.org/2000/svg" width="96" height="96" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6"/><path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18"/><path d="M4 22h16"/><path d="M10 14.66V17c0 .55-.45 1-1 1H4v2h16v-2h-5c-.55 0-1-.45-1-1v-2.34"/><path d="M12 2a6 6 0 0 1 6 6v1a6 6 0 0 1-6 6a6 6 0 0 1-6-6V8a6 6 0 0 1 6-6z"/></svg>
-              </div>
-              
-              <!-- 右下キラキラ -->
-              <div class="absolute -bottom-4 -right-12 text-yellow-500 animate-pulse">
-                <svg xmlns="http://www.w3.org/2000/svg" width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m12 3-1.912 5.813a2 2 0 0 1-1.275 1.275L3 12l5.813 1.912a2 2 0 0 1 1.275 1.275L12 21l1.912-5.813a2 2 0 0 1 1.275-1.275L21 12l-5.813-1.912a2 2 0 0 1-1.275-1.275Z"/><path d="m19 17 1 2.5 2.5.5-2.5 1-1 2.5-1-2.5-2.5-1 2.5-1Z"/></svg>
-              </div>
-            </div>
-            
-            <h2 class="text-5xl font-black text-amber-600 dark:text-amber-400 mb-4 tracking-wide leading-tight">
-              おつかれさま〜♪
-            </h2>
-
-            <div class="bg-amber-50 dark:bg-amber-950/30 px-8 py-4 rounded-2xl border border-amber-200/30 mb-8 w-full max-w-xs">
-              <span class="block text-xs text-amber-700 dark:text-amber-400 font-bold tracking-widest uppercase mb-1">達成セット数</span>
-              <span class="text-3xl font-extrabold text-slate-800 dark:text-slate-100">
-                ${state.completedCycles} / ${state.targetCycles} セット
-              </span>
-            </div>
-
-            <button
-              id="btn-restart"
-              class="py-4 px-10 rounded-2xl ${theme.button} font-extrabold tracking-wider transition-all duration-300 active:scale-95 text-lg w-full max-w-xs"
-            >
-              もう一度行う
-            </button>
-          </div>
-        `;
+        timerContainerEl.classList.add('hidden');
+        completeContainerEl.classList.remove('hidden');
         
-        // 再チャレンジボタンのリスナー紐付け
-        document.getElementById('btn-restart').addEventListener('click', resetTimer);
+        // 完了したセット数のテキストを更新
+        document.getElementById('complete-cycles-display').innerText = `${state.completedCycles} / ${state.targetCycles} セット`;
+        
+        // もう一度ボタンのカラークラス
+        const restartBtn = document.getElementById('btn-restart');
+        restartBtn.className = `py-4 px-10 rounded-2xl ${theme.button} font-extrabold tracking-wider transition-all duration-300 active:scale-95 text-lg w-full max-w-xs`;
       } else {
-        // 通常タイマー画面の描画
+        timerContainerEl.classList.remove('hidden');
+        completeContainerEl.classList.add('hidden');
+        
+        // 通常タイマー内のテキストやデザインを差分更新
+        phaseIconEl.innerHTML = theme.icon;
+        phaseLabelEl.innerText = theme.label;
+        phaseLabelEl.className = `text-3xl font-extrabold tracking-wider ${theme.labelColor} transition-colors duration-500`;
+        
+        completedCyclesDisplayEl.innerText = state.completedCycles;
+        targetCyclesDisplayEl.innerText = state.targetCycles === null ? '∞' : state.targetCycles;
+        
+        // 残り時間表示の更新
+        timeLeftDisplayEl.innerText = state.timeLeft;
+        
+        // サークルゲージ色をフェーズに合わせて更新
+        progressCircleEl.setAttribute('class', `timer-circle ${state.currentPhase === 'activity' ? 'stroke-amber-500' : 'stroke-emerald-500'}`);
+        bgCircleEl.setAttribute('class', `transition-colors duration-500 ${state.currentPhase === 'activity' ? 'stroke-amber-100 dark:stroke-amber-950/50' : 'stroke-emerald-100 dark:stroke-emerald-950/50'}`);
+
+        // 残り時間割合を算出して、サークルにじわっと反映させる (新規作成されないためアニメーションがバッチリ働きます)
         const totalDuration = state.currentPhase === 'activity' ? state.activityDuration : state.restDuration;
         const progressPercent = (state.timeLeft / totalDuration) * 100;
+        setProgress(progressPercent);
+
+        // スタート/一時停止ボタンの切り替え
+        btnToggleEl.className = `flex-1 py-4 px-6 rounded-2xl ${theme.button} font-bold tracking-wider transition-all duration-300 active:scale-95 flex items-center justify-center gap-2`;
         
-        // 12時起点・時計回りに減るためのSVG Dashoffsetの計算
-        const strokeDasharray = 942.48;
-        const strokeDashoffset = strokeDasharray * (1 - progressPercent / 100);
-
-        cardContentEl.innerHTML = `
-          <!-- モード名・アイコン -->
-          <div class="flex items-center gap-3 mb-6">
-            ${theme.icon}
-            <h2 class="text-3xl font-extrabold tracking-wider ${theme.labelColor} transition-colors duration-500">
-              ${theme.label}
-            </h2>
-          </div>
-
-          <!-- セット数カウンター -->
-          <div class="bg-slate-100 dark:bg-slate-800/60 px-5 py-2 rounded-full text-slate-600 dark:text-slate-300 text-sm font-semibold tracking-wide mb-6">
-            セット数: <span class="text-lg font-bold text-slate-800 dark:text-slate-100">${state.completedCycles}</span>
-            <span class="text-slate-400 mx-1">/</span>
-            <span class="text-slate-500 dark:text-slate-400 font-bold">
-              ${state.targetCycles === null ? '∞' : state.targetCycles}
-            </span>
-          </div>
-
-          <!-- 円形プログレス＆時間表示 -->
-          <div class="relative w-72 h-72 md:w-80 md:h-80 flex items-center justify-center my-4">
-            <!-- 12時の位置から時計回りに減るインラインSVG。
-                 translate, rotate, scaleの厳密な組み合わせにより、CSS仕様変更に左右されずに時計回り減衰を実現 -->
-            <svg class="w-full h-full" viewBox="0 0 320 320">
-              <!-- 背景の円 -->
-              <circle
-                class="transition-colors duration-500 ${theme.ringBg}"
-                stroke-width="14"
-                fill="transparent"
-                r="150"
-                cx="160"
-                cy="160"
-                transform="translate(160, 160) rotate(-90) translate(-160, -160)"
-              />
-              <!-- 進捗の円 -->
-              <circle
-                class="transition-all duration-300 ease-linear ${theme.ring}"
-                stroke-width="14"
-                stroke-dasharray="942.48"
-                stroke-dashoffset="${strokeDashoffset}"
-                stroke-linecap="round"
-                fill="transparent"
-                r="150"
-                cx="160"
-                cy="160"
-                transform="translate(160, 160) rotate(-90) scale(-1, 1) translate(-160, -160)"
-              />
-            </svg>
-            
-            <!-- 中央の残り秒数 (斜線なし、可愛い丸みのあるシステム太字フォント) -->
-            <div class="absolute inset-0 flex flex-col items-center justify-center">
-              <span class="text-8xl font-black tracking-tight text-slate-800 dark:text-slate-100 select-none leading-none">
-                ${state.timeLeft}
-              </span>
-              <span class="text-sm font-semibold text-slate-500 tracking-widest mt-2 uppercase">
-                秒
-              </span>
-            </div>
-          </div>
-
-          <!-- コントロールボタン (影なしのソリッドなデザイン) -->
-          <div class="flex items-center justify-center gap-6 mt-8 w-full max-w-sm">
-            <!-- リセットボタン -->
-            <button
-              id="btn-reset"
-              class="flex-1 py-4 px-6 rounded-2xl bg-slate-200 hover:bg-slate-300 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 font-bold tracking-wide transition-all duration-200 active:scale-95 flex items-center justify-center gap-2"
-              aria-label="タイマーをリセット"
-            >
-              <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>
-              リセット
-            </button>
-
-            <!-- スタート/一時停止ボタン -->
-            <button
-              id="btn-toggle"
-              class="flex-1 py-4 px-6 rounded-2xl ${theme.button} font-bold tracking-wider transition-all duration-300 active:scale-95 flex items-center justify-center gap-2"
-              aria-label="${state.isActive ? 'タイマーを一時停止' : 'タイマーを開始'}"
-            >
-              ${state.isActive ? `
-                <svg xmlns="http://www.w3.org/2000/svg" class="fill-current" width="24" height="24" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="14" y="4" width="4" height="16" rx="1"/><rect x="6" y="4" width="4" height="16" rx="1"/></svg>
-                一時停止
-              ` : `
-                <svg xmlns="http://www.w3.org/2000/svg" class="fill-current" width="24" height="24" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="6 3 20 12 6 21 6 3"/></svg>
-                スタート
-              `}
-            </button>
-          </div>
-        `;
-
-        // 動的ボタンのイベント紐付け
-        document.getElementById('btn-reset').addEventListener('click', resetTimer);
-        document.getElementById('btn-toggle').addEventListener('click', toggleTimer);
+        if (state.isActive) {
+          toggleIconEl.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" class="fill-current" width="24" height="24" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="14" y="4" width="4" height="16" rx="1"/><rect x="6" y="4" width="4" height="16" rx="1"/></svg>`;
+          toggleTextEl.innerText = "一時停止";
+        } else {
+          toggleIconEl.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" class="fill-current" width="24" height="24" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="6 3 20 12 6 21 6 3"/></svg>`;
+          toggleTextEl.innerText = "スタート";
+        }
       }
 
       // 音声有無の状態反映
@@ -631,10 +691,13 @@
       updateUI();
     }
 
-    // イベントリスナーのセットアップ (影はなく、すべてフラット)
+    // イベントリスナーのセットアップ
     document.getElementById('btn-settings').addEventListener('click', openSettings);
     document.getElementById('btn-close-settings').addEventListener('click', closeSettings);
     document.getElementById('btn-apply-settings').addEventListener('click', closeSettings);
+    document.getElementById('btn-restart').addEventListener('click', resetTimer);
+    btnToggleEl.addEventListener('click', toggleTimer);
+    btnResetEl.addEventListener('click', resetTimer);
     
     // 消音ボタン
     document.getElementById('btn-volume').addEventListener('click', () => {
